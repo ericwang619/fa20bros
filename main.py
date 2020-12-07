@@ -34,8 +34,7 @@ def main():
         print('No data found.')
 
     for row in values:
-        print(row)
-        new_values.append(["1", "test"])
+        new_values.append(["D", "E"])
 
     update_spreadsheet(new_values, service)
 
