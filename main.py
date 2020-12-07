@@ -6,16 +6,51 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
+
+#read/write
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
+
+#fa20bros spreadsheet
 SAMPLE_SPREADSHEET_ID = '1NvMdLi3mPeO8WWEH0cC_yMCakPRq8IYq67X-0Fb4iJU'
-SAMPLE_RANGE_NAME = 'Sheet4!E:E'
+SAMPLE_RANGE_NAME = 'api_testing!D:E'
 
 def main():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
+
+    service = credentials()
+
+    # Call the Sheets API
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+                                range=SAMPLE_RANGE_NAME).execute()
+
+    #get values from range above, ignores rows with no data
+    values = result.get('values', [])
+
+    #matrix (list of lists) for values to be added
+    new_values = []
+    if not values:
+        print('No data found.')
+
+    for row in values:
+        print(row)
+        new_values.append(["1", "test"])
+
+    update_spreadsheet(new_values, service)
+
+
+def update_spreadsheet(new_values, service):
+    body = {
+        'values': new_values
+    }
+    result = service.spreadsheets().values().update(
+        spreadsheetId=SAMPLE_SPREADSHEET_ID, range=SAMPLE_RANGE_NAME,
+        valueInputOption='USER_ENTERED', body=body).execute()
+    print('{0} cells updated.'.format(result.get('updatedCells')))
+
+
+def credentials():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -34,31 +69,9 @@ def main():
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-
     service = build('sheets', 'v4', credentials=creds)
+    return service
 
-    # Call the Sheets API
-    sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-                                range=SAMPLE_RANGE_NAME).execute()
-    values = result.get('values', [])
-
-    new_values = []
-    if not values:
-        print('No data found.')
-    else:
-        for row in values:
-            print(row)
-            new_values.append(["test"])
-
-
-    body = {
-        'values': new_values
-    }
-    result = service.spreadsheets().values().update(
-        spreadsheetId=SAMPLE_SPREADSHEET_ID, range=SAMPLE_RANGE_NAME,
-        valueInputOption='RAW', body=body).execute()
-    print('{0} cells updated.'.format(result.get('updatedCells')))
 
 if __name__ == '__main__':
     main()
