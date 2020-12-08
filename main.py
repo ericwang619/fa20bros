@@ -42,10 +42,10 @@ def main():
             for p in pairings:
                 pair_dict[v[0]].append(p.strip())
 
-    print(len(brothers))
-
     #at this point we have brothers (list of bros) and
     #pair_dict (dictionary for each brother and all brothers prev paired with)
+
+    #print(len(brothers))
 
     new_pairings = {}
     paired_bros = []
@@ -58,7 +58,8 @@ def main():
         else:
             bros = copy.deepcopy(brothers)         #copy list of brothers remaining
 
-            bros.remove(v[0])
+            bros.remove(v[0])           #remove self
+
             for p in pair_dict[v[0]]:   #remove brothers already paired before
                 if p in bros:
                     bros.remove(p)
@@ -130,4 +131,11 @@ def update_spreadsheet(new_values, service):
 
 
 if __name__ == '__main__':
-    main()
+    success = False
+    while (not success):
+        try:            #can't fix qq. possible cyclic error from randomness
+            main()
+            success = True
+        except:
+            pass
+
