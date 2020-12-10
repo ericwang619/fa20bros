@@ -4,90 +4,91 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-import random
-import copy
+from collections import deque
 
 # If modifying these scopes, delete the file token.pickle.
 
-#read/write
+# read/write
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
 
-#fa20bros spreadsheet
+# fa20bros spreadsheet
 SAMPLE_SPREADSHEET_ID = '1NvMdLi3mPeO8WWEH0cC_yMCakPRq8IYq67X-0Fb4iJU'
-SAMPLE_RANGE_NAME = 'api_testing!A2:L'
+SAMPLE_RANGE_NAME = 'api_testing!A2:AZ'
+
 
 def main():
-    values, service = read_spreadsheet()
+    new_pairing()
+
+
+def new_pairing():
+    values, service = read_spreadsheet()  # read in spreadsheet
 
     brothers = []
-
-    pair_dict = {}
-
-    for v in values:
-
-        #get list of brothers
-        brothers.append(v[0])
-
-        #read in past pairings into dictionary for each brother
-        pair_dict[v[0]] = []
-
-        #brothers paired with before
-        pair_list = v[1:]
-
-        #account for possibility of group of 3 brothers
-        for pair in pair_list:
-            pairings = pair.split(',')
-            for p in pairings:
-                pair_dict[v[0]].append(p.strip())
-
-    #at this point we have brothers (list of bros) and
-    #pair_dict (dictionary for each brother and all brothers prev paired with)
-
-    #print(len(brothers))
-
-    new_pairings = {}
-    paired_bros = []
+    num_week = len(values[0]) - 2
 
     for v in values:
+        brothers.append(v[1])  # get all brothers (hidden column that stores initial pairings)
 
-        if v[0] in paired_bros:     #pairing made earlier
-            v.append(new_pairings[v[0]])
+    brothers = rr_rotate(brothers, num_week)  # do round robin rotation
 
-        else:
-            bros = copy.deepcopy(brothers)         #copy list of brothers remaining
+    pairs = rr_pairs(brothers)  # pair up brothers
 
-            bros.remove(v[0])           #remove self
-
-            for p in pair_dict[v[0]]:   #remove brothers already paired before
-                if p in bros:
-                    bros.remove(p)
-
-            if (len(bros) == 2):        #if only 3 bros total left
-                v.append(bros[0] + ", " + bros[1])
-                new_pairings[bros[0]] = bros[1] + ", " + v[0]
-                new_pairings[bros[1]] = v[0] + ", " + bros[0]
-
-                paired_bros.append(bros[0])
-                paired_bros.append(bros[1])
-
-                brothers.remove(bros[0])    #remove all brothers from remaining list
-                brothers.remove(bros[1])
-                brothers.remove(v[0])
-
-            else:
-                new_bro = random.choice(bros)   #pick random brother from remaining
-                new_pairings[new_bro] = v[0]    #add new pairing
-                v.append(new_bro)
-
-                paired_bros.append(new_bro)
-
-                brothers.remove(new_bro)
-                brothers.remove(v[0])
-
+    for i in range(len(pairs)):  # add new column for new pairings
+        values[i].append(pairs[i][1])
 
     update_spreadsheet(values, service)
+
+
+# performs round robin rotation on brothers. Number of rotations depends on the week
+# round robin rotation fixes first brother, rotates all others
+# example with 4 bros: (1, 2), (3, 4) -> (1, 3), (4, 2) -> (1, 4), (2, 3)
+def rr_rotate(brothers, num_week):
+
+    for i in range(num_week):       # rotate based on which week it is
+
+        mid = int(len(brothers) / 2)    # split into two halves
+        bros1 = brothers[:mid]
+        bros2 = brothers[mid:]
+
+        first_bro_1 = bros1[0]      # store edge bros
+        last_bro_2 = bros2[-1]
+
+        bros1 = deque(bros1)        # deque for rotation
+        bros2 = deque(bros2)
+
+        bros1.rotate(-1)
+        bros2.rotate(1)
+
+        bros1 = list(bros1)
+        bros2 = list(bros2)
+
+        bros1[-1] = last_bro_2      # update edge bros
+        bros2[0] = bros1[0]
+        bros1[0] = first_bro_1
+
+        brothers = bros1 + bros2    # combine halves
+
+    return brothers
+
+
+# creates pairings after round robin rotation
+def rr_pairs(brothers):
+    mid = int(len(brothers) / 2)  # split up brothers into two halves
+    bros1 = brothers[:mid]
+    bros2 = brothers[mid:]
+
+    pairs = list(zip(bros1, bros2))  # pair up brothers
+
+    dup = []
+    for p in pairs:
+        dup.append((p[1], p[0]))  # duplicate in reverse
+
+    pairs = pairs + dup
+    pairs.sort()  # sort alphabetically
+
+    return pairs
 
 
 def read_spreadsheet():
@@ -129,13 +130,5 @@ def update_spreadsheet(new_values, service):
     print('{0} cells updated.'.format(result.get('updatedCells')))
 
 
-
 if __name__ == '__main__':
-    success = False
-    while (not success):
-        try:            #can't fix qq. possible cyclic error from randomness
-            main()
-            success = True
-        except:
-            pass
-
+    main()
