@@ -13,7 +13,7 @@ import random
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-# 3rd term bros spreadsheet
+# Copy of 3rd term bros spreadsheet
 SPREADSHEET_ID = '1C7TgNEkKW16OwEWMo15Je6SUM0ILA7-uUIzxfgtLNrU'
 
 
