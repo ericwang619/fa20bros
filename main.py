@@ -9,113 +9,85 @@ import random
 
 # If modifying these scopes, delete the file token.pickle.
 
-# read/write
+# read/write permission
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-
-# fa20bros spreadsheet
-SPREADSHEET_ID = '1NvMdLi3mPeO8WWEH0cC_yMCakPRq8IYq67X-0Fb4iJU'
-
-# exclude = ['Daniel Chen', 'Oh Byung Kwon']
-exclude = []
-
-odd_bro = ''
-odd_group = {}
+# 3rd term bros spreadsheet
+SPREADSHEET_ID = '1C7TgNEkKW16OwEWMo15Je6SUM0ILA7-uUIzxfgtLNrU'
 
 
-def main():
+
+def main(offset=0):
     service = login()  # login and read in spreadsheet
-    new_pairs, new_week = new_pairing(service)
-    update_contacts(new_pairs, new_week, service)
-    odd_bro = ''
-    odd_group.clear()
-    exclude.clear()
+    new_pairs, new_week, week_number = new_pairing(service, offset)
+    update_contacts(new_pairs, new_week, week_number, service)
+
+# pull list of brothers from google form responses
+def get_brothers(service):
+    SHEET_RANGE = cell_range('Form Responses', 'B2', 'D')
+    responses = read_spreadsheet(service, SHEET_RANGE)
+    brothers = []
+    for r in responses:
+        brothers.append(r[0])
+
+    print(brothers)
+    return brothers
+
+# store week counter in This_Week sheet in top right cell
+def get_week(service):
+    SHEET_RANGE = cell_range('This_Week', 'A1', 'B')
+    sheet = read_spreadsheet(service, SHEET_RANGE)
+    week = sheet[0][0]
+
+    print(int(week[5:]) + 1)    #increment week
+    return int(week[5:]) + 1
 
 
-def update_contacts(new_pairs, week, service):
-    contact_range = cell_range('Form Responses', 'A2', 'F')
-    contact_info = read_spreadsheet(service, contact_range)
-    info = {}
-    for c in contact_info:
-        if (len(c) < 6):
-            c.append("")
-    for c in contact_info:
-        info[c[1]] = [c[1], c[2], c[5]]
-    current_range = cell_range('This_Week', 'A1', 'D')
-    updated_contact = []
-    for p in new_pairs:
-        if (p[1] == 'n/a'):
-            updated_contact.append([p[0], 'n/a', 'n/a', 'n/a'])
-        else:
-            if (p[0] not in odd_group):
-                updated_contact.append([p[0]] + info[p[1]])
-            else:
-                odd_info = []
-                first_bro = odd_group[p[0]][0]
-                second_bro = odd_group[p[0]][1]
-                for i in range(len(info[first_bro])):
-                    odd_info.append(info[first_bro][i] + ", " + info[second_bro][i])
-                updated_contact.append([p[0]] + odd_info)
+# generate new pairs for this week
+def new_pairing(service, offset):
+    brothers = get_brothers(service)
+    num_week = get_week(service)
 
 
-    header = ['Week of', week, 'Phone #', 'Comments']
-    update_spreadsheet([header] + updated_contact, service, current_range)
-
-
-def new_pairing(service):
-    global odd_bro
     SHEET_RANGE = cell_range('All_Pairs', 'A1', 'AZ')
-
     values = read_spreadsheet(service, SHEET_RANGE)
 
-    weeks = values[0]
+    weeks = values[0]   # week header
+    values = values[1:]
 
-    brothers = []
+    (bros1, bros2) = rr_rotate(brothers, num_week + offset)  # do round robin rotation
 
-    num_week = len(values[1]) - 2  # hidden row to record weeks
-
-    values = values[2:]
-
-    for v in values:
-        if (len(v) > num_week + 2):
-            exclude.append(v[0])
-
-    for v in values:
-        if (v[1] not in exclude):
-            brothers.append(v[1])  # get all brothers (hidden column that stores initial pairings)
-
-    if (len(exclude) % 2 == 1):  # odd number, select random brother
-        odd_bro = random.choice(brothers)
-        brothers.remove(odd_bro)
-
-    brothers = rr_rotate(brothers, num_week)  # do round robin rotation
-
-    pairs = rr_pairs(brothers)  # pair up brothers
+    pairs = rr_pairs(bros1, bros2)  # pair up brothers
 
     for i in range(len(pairs)):  # add new column for new pairings
-        if (values[i][0] not in exclude):
-            values[i].append(pairs[i][1])
+        values[i].append(pairs[i][1])
 
-    week_counter = ['test'] * (num_week + 3)
-    values = [weeks] + [week_counter] + values
-
+    values = [weeks] + values
     update_spreadsheet(values, service, SHEET_RANGE)
 
-    exclude.clear()
-
-    return pairs, weeks[num_week + 2]
+    return pairs, weeks[num_week - offset], num_week
 
 
 # performs round robin rotation on brothers. Number of rotations depends on the week
 # round robin rotation fixes first brother, rotates all others
-# example with 4 bros: (1, 2), (3, 4) -> (1, 3), (4, 2) -> (1, 4), (2, 3)
+# example with 4 bros: [1, 2], [3, 4] -> [1, 3], [4, 2] -> [1, 4], [2, 3]
 def rr_rotate(brothers, num_week):
-    for i in range(num_week):  # rotate based on which week it is
+    bros1 = []
+    bros2 = []
 
-        mid = int(len(brothers) / 2)  # split into two halves
-        bros1 = brothers[:mid]
-        bros2 = brothers[mid:]
+    # divide brothers into two lists
+    for i in range(len(brothers)):
+        if i % 2 == 0:
+            bros1.append(brothers[i])
+        else:
+            bros2.append(brothers[i])
+
+    print(bros1)
+    print(bros2)
+    print()
+
+    for i in range(num_week):  # rotate based on which week it is
 
         first_bro_1 = bros1[0]  # store edge bros
         last_bro_2 = bros2[-1]
@@ -133,37 +105,22 @@ def rr_rotate(brothers, num_week):
         bros2[0] = bros1[0]
         bros1[0] = first_bro_1
 
-        brothers = bros1 + bros2  # combine halves
+        print(bros1)
+        print(bros2)
+        print()
 
-    return brothers
+    return (bros1, bros2)
 
 
 # creates pairings after round robin rotation
-def rr_pairs(brothers):
-    mid = int(len(brothers) / 2)  # split up brothers into two halves
-    bros1 = brothers[:mid]
-    bros2 = brothers[mid:]
+def rr_pairs(bros1, bros2):
 
     pairs = list(zip(bros1, bros2))  # pair up brothers
 
-    if (odd_bro != ''):
-        odd_pair = random.choice(pairs)
-        pairs.remove(odd_pair)
-        odd_group[odd_bro] =  [odd_pair[0], odd_pair[1]]
-        odd_group[odd_pair[0]] = [odd_pair[1], odd_bro]
-        odd_group[odd_pair[1]] = [odd_bro, odd_pair[0]]
-
+    # duplicate pairings so list stores [A,B] and [B,A] pairings
     dup = []
     for p in pairs:
         dup.append((p[1], p[0]))  # duplicate in reverse
-
-    if (odd_bro != ''):
-        pairs.append((odd_bro, odd_pair[0] + ", " + odd_pair[1]))
-        pairs.append((odd_pair[0], odd_pair[1] + ", " + odd_bro))
-        pairs.append((odd_pair[1], odd_bro + ", " + odd_pair[0]))
-
-    for e in exclude:
-        dup.append((e, 'n/a'))
 
     pairs = pairs + dup
     pairs.sort()  # sort alphabetically
@@ -215,6 +172,26 @@ def update_spreadsheet(new_values, service, sheet_range):
     print('{0} cells updated.'.format(result.get('updatedCells')))
 
 
+def update_contacts(new_pairs, week, week_number, service):
+
+    contact_range = cell_range('Form Responses', 'A2', 'C')
+    contact_info = read_spreadsheet(service, contact_range)
+    info = {}
+
+    # get contact info
+    for c in contact_info:
+        info[c[1]] = [c[1], c[2]]  # name + phone number
+
+    current_range = cell_range('This_Week', 'A1', 'C')
+    updated_contact = []
+    for p in new_pairs:
+        updated_contact.append([p[0]] + info[p[1]])
+
+    header = ['Week ' + str(week_number), week, 'Phone #']
+    update_spreadsheet([header] + updated_contact, service, current_range)
+
+
+# syntax for reading google sheets
 def cell_range(sheet, start, end):
     return sheet + "!" + start + ":" + end
 

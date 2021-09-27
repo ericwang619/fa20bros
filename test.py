@@ -1,16 +1,26 @@
 from main import *
 
-if __name__=='__main__':
+# check for duplicate pairings
+def test():
+    global values
     service = login()
-    sheet_range = cell_range('All_Pairs', 'A3', 'AZ')
+    sheet_range = cell_range('All_Pairs', 'A2', 'AZ')
     values = read_spreadsheet(service, sheet_range)
     bros = {}
-    dups = []
+    duplicates = []
     for v in values:
         pairs = v[2:]
         bros[v[0]] = []
-        for p in pairs:
-            if (p in bros[v[0]] and p != 'n/a'):
-                raise Exception("qq")
-            else:
-                bros[v[0]].append(p)
+        for pair in pairs:
+            adjusted_pair = pair.split(',')
+            for a in adjusted_pair:
+                a = a.strip()
+                if (a in bros[v[0]] and a != 'n/a'):
+                    duplicates.append((v[0], a))
+                else:
+                    bros[v[0]].append(a)
+    print(duplicates)
+
+
+if __name__=='__main__':
+    test()
