@@ -1,3 +1,3 @@
 from test import *
-main(0)
+main(10)
 test()

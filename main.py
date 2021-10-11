@@ -13,15 +13,16 @@ import random
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
+SPREADSHEET_ID = '1P1xDPKxWlEGnJsjPIvKciflzT_pT6lgr2tECwhb_7nc'
+
 # Copy of 3rd term bros spreadsheet
-SPREADSHEET_ID = '1C7TgNEkKW16OwEWMo15Je6SUM0ILA7-uUIzxfgtLNrU'
-
-
+# SPREADSHEET_ID = '1C7TgNEkKW16OwEWMo15Je6SUM0ILA7-uUIzxfgtLNrU'
 
 def main(offset=0):
     service = login()  # login and read in spreadsheet
-    new_pairs, new_week, week_number = new_pairing(service, offset)
-    update_contacts(new_pairs, new_week, week_number, service)
+    new_pairs, new_week = new_pairing(service, offset)
+    update_contacts(new_pairs, new_week, service)
+
 
 # pull list of brothers from google form responses
 def get_brothers(service):
@@ -31,27 +32,17 @@ def get_brothers(service):
     for r in responses:
         brothers.append(r[0])
 
-    print(brothers)
     return brothers
-
-# store week counter in This_Week sheet in top right cell
-def get_week(service):
-    SHEET_RANGE = cell_range('This_Week', 'A1', 'B')
-    sheet = read_spreadsheet(service, SHEET_RANGE)
-    week = sheet[0][0]
-
-    print(int(week[5:]) + 1)    #increment week
-    return int(week[5:]) + 1
 
 
 # generate new pairs for this week
 def new_pairing(service, offset):
     brothers = get_brothers(service)
-    num_week = get_week(service)
-
 
     SHEET_RANGE = cell_range('All_Pairs', 'A1', 'AZ')
     values = read_spreadsheet(service, SHEET_RANGE)
+
+    num_week = len(values[1])
 
     weeks = values[0]   # week header
     values = values[1:]
@@ -66,7 +57,7 @@ def new_pairing(service, offset):
     values = [weeks] + values
     update_spreadsheet(values, service, SHEET_RANGE)
 
-    return pairs, weeks[num_week - offset], num_week
+    return pairs, weeks[num_week]
 
 
 # performs round robin rotation on brothers. Number of rotations depends on the week
@@ -82,10 +73,6 @@ def rr_rotate(brothers, num_week):
             bros1.append(brothers[i])
         else:
             bros2.append(brothers[i])
-
-    print(bros1)
-    print(bros2)
-    print()
 
     for i in range(num_week):  # rotate based on which week it is
 
@@ -104,10 +91,6 @@ def rr_rotate(brothers, num_week):
         bros1[-1] = last_bro_2  # update edge bros
         bros2[0] = bros1[0]
         bros1[0] = first_bro_1
-
-        print(bros1)
-        print(bros2)
-        print()
 
     return (bros1, bros2)
 
@@ -172,7 +155,7 @@ def update_spreadsheet(new_values, service, sheet_range):
     print('{0} cells updated.'.format(result.get('updatedCells')))
 
 
-def update_contacts(new_pairs, week, week_number, service):
+def update_contacts(new_pairs, week, service):
 
     contact_range = cell_range('Form Responses', 'A2', 'C')
     contact_info = read_spreadsheet(service, contact_range)
@@ -187,7 +170,7 @@ def update_contacts(new_pairs, week, week_number, service):
     for p in new_pairs:
         updated_contact.append([p[0]] + info[p[1]])
 
-    header = ['Week ' + str(week_number), week, 'Phone #']
+    header = ['Week of', week, 'Phone #']
     update_spreadsheet([header] + updated_contact, service, current_range)
 
 
