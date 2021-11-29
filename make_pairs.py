@@ -1,3 +1,3 @@
 from test import *
-main(10)    # input offset
+main(0)    # input offset
 test()

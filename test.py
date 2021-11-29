@@ -9,13 +9,13 @@ def test():
     bros = {}
     duplicates = []
     for v in values:
-        pairs = v[2:]
+        pairs = v[1:]
         bros[v[0]] = []
         for pair in pairs:
             adjusted_pair = pair.split(',')
             for a in adjusted_pair:
                 a = a.strip()
-                if (a in bros[v[0]] and a != 'n/a'):
+                if (a in bros[v[0]] and a != 'n/a' and v[0] != 'n/a'):
                     duplicates.append((v[0], a))
                 else:
                     bros[v[0]].append(a)

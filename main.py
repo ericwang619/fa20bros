@@ -5,18 +5,12 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from collections import deque
-import random
-
-# If modifying these scopes, delete the file token.pickle.
+import sys
 
 # read/write permission
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-# The ID and range of a sample spreadsheet.
-SPREADSHEET_ID = '1P1xDPKxWlEGnJsjPIvKciflzT_pT6lgr2tECwhb_7nc'
-
-# Copy of 3rd term bros spreadsheet
-# SPREADSHEET_ID = '1C7TgNEkKW16OwEWMo15Je6SUM0ILA7-uUIzxfgtLNrU'
+SPREADSHEET_ID = ''
 
 def main(offset=0):
     service = login()  # login and read in spreadsheet
@@ -40,22 +34,28 @@ def new_pairing(service, offset):
     brothers = get_brothers(service)
 
     SHEET_RANGE = cell_range('All_Pairs', 'A1', 'AZ')
-    values = read_spreadsheet(service, SHEET_RANGE)
+    all_pairs = read_spreadsheet(service, SHEET_RANGE)
 
-    num_week = len(values[1])
 
-    weeks = values[0]   # week header
-    values = values[1:]
+    if (len(all_pairs) == 1):
+        sorted_brothers = sorted(brothers)
+        for b in sorted_brothers:
+            all_pairs.append([b])
+
+    num_week = len(all_pairs[1])
+
+    weeks = all_pairs[0]   # week header
+    all_pairs = all_pairs[1:]
 
     (bros1, bros2) = rr_rotate(brothers, num_week + offset)  # do round robin rotation
 
     pairs = rr_pairs(bros1, bros2)  # pair up brothers
 
     for i in range(len(pairs)):  # add new column for new pairings
-        values[i].append(pairs[i][1])
+        all_pairs[i].append(pairs[i][1])
 
-    values = [weeks] + values
-    update_spreadsheet(values, service, SHEET_RANGE)
+    all_pairs = [weeks] + all_pairs
+    update_spreadsheet(all_pairs, service, SHEET_RANGE)
 
     return pairs, weeks[num_week]
 
@@ -180,4 +180,7 @@ def cell_range(sheet, start, end):
 
 
 if __name__ == '__main__':
-    main()
+    offset = 0  # rotation offsets
+    if (len(sys.argv) == 2):
+        offset = sys.argv[1]
+    main(offset)
